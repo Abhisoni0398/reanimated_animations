@@ -1,43 +1,95 @@
-import {View, Text, SafeAreaView, Alert} from 'react-native';
-import React, {useEffect} from 'react';
+import {View, Text, StyleSheet, Alert} from 'react-native';
+import React from 'react';
 import Animated, {
-  useSharedValue,
+  useAnimatedGestureHandler,
   useAnimatedStyle,
-  withTiming,
+  useSharedValue,
   withSpring,
-  withRepeat,
 } from 'react-native-reanimated';
+import {
+  PanGestureHandler,
+  PanGestureHandlerGestureEvent,
+} from 'react-native-gesture-handler';
+
+type contextType = {
+  translateX: number;
+  translateY: number;
+};
 
 const App = () => {
-  const progress = useSharedValue(1);
-  const scale = useSharedValue(3);
-  const animatedStyle = useAnimatedStyle(() => {
+  const transitionX = useSharedValue(0);
+  const transitionY = useSharedValue(0);
+
+  const panGestureEvent = useAnimatedGestureHandler<
+    PanGestureHandlerGestureEvent,
+    contextType
+  >({
+    onStart: (event, context) => {
+      context.translateX = transitionX.value;
+      context.translateY = transitionY.value;
+    },
+    onActive: (event, context) => {
+      transitionX.value = event.translationX + context.translateX;
+      transitionY.value = event.translationY + context.translateY;
+    },
+    onEnd: () => {
+      const distance = Math.sqrt(
+        transitionX.value ** 2 + transitionY.value ** 2,
+      );
+      console.log(transitionX.value, transitionY.value, distance);
+      if (distance < 250) {
+        transitionX.value = withSpring(0);
+        transitionY.value = withSpring(0);
+      }
+    },
+  });
+
+  const rStyle = useAnimatedStyle(() => {
     return {
-      opacity: progress.value,
-      borderRadius: (progress.value * 100) / 2,
       transform: [
-        {scale: scale.value},
-        {rotate: `${progress.value * 2 * Math.PI}rad`},
+        {
+          translateX: transitionX.value,
+        },
+        {
+          translateY: transitionY.value,
+        },
       ],
     };
   }, []);
 
-  useEffect(() => {
-    progress.value = withRepeat(withSpring(0.5), 6, true);
-    scale.value = withRepeat(withSpring(1), 6, true);
-  }, []);
-
   return (
-    <SafeAreaView
-      style={{justifyContent: 'center', alignItems: 'center', flex: 1}}>
-      <Animated.View
-        style={[
-          {width: 100, height: 100, backgroundColor: 'blue'},
-          animatedStyle,
-        ]}
-      />
-    </SafeAreaView>
+    <View style={styles.container}>
+      <View style={styles.circle}>
+        <PanGestureHandler onGestureEvent={panGestureEvent}>
+          <Animated.View style={[styles.square, rStyle]} />
+        </PanGestureHandler>
+      </View>
+    </View>
   );
 };
 
 export default App;
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  square: {
+    width: 100,
+    height: 100,
+    backgroundColor: 'rgba(0,0,256, 0.5)',
+    borderRadius: 20,
+  },
+  circle: {
+    height: 400,
+    width: 400,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'white',
+    borderRadius: 200,
+    borderWidth: 5,
+    borderColor: 'blue',
+  },
+});
