@@ -35,7 +35,7 @@ interface Item {
 // {id: 9}
 // ]
 
-export default function App() {
+export default function Layouts() {
   const initialMode = useRef<boolean>(true);
 
   useEffect(() => {
