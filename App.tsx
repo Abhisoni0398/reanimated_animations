@@ -1,120 +1,104 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import {View, Text, SafeAreaView, Dimensions} from 'react-native';
+import React, {Context} from 'react';
 import Animated, {
-  BounceOut,
-  FadeIn,
-  FadeOut,
-  Layout,
-  LightSpeedInRight,
-  PinwheelIn,
-  RotateInDownLeft,
-  SlideInRight,
-  StretchOutY,
-  ZoomIn,
-  ZoomInRotate,
-  ZoomInUp,
-  ZoomOut,
+  Extrapolate,
+  interpolate,
+  useAnimatedGestureHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
+import {
+  GestureHandlerRootView,
+  PanGestureHandler,
+  PanGestureHandlerGestureEvent,
+} from 'react-native-gesture-handler';
 
-const LIST_ITEM_COLOR = '#1798DE';
+const {width: SCREEN_WIDTH} = Dimensions.get('window');
+const THRESHOLD = SCREEN_WIDTH / 2;
 
-interface Item {
-  id: number;
-}
+const App = () => {
+  const translateX = useSharedValue(0);
 
-// [
-// {id: 0},
-// {id: 1},
-// ...,
-// {id: 9}
-// ]
+  const panGestureEvent = useAnimatedGestureHandler<
+    PanGestureHandlerGestureEvent,
+    {x: number}
+  >({
+    onStart: (_, context) => {
+      context.x = translateX.value;
+    },
 
-export default function App() {
-  const initialMode = useRef<boolean>(true);
+    onActive: (event, context) => {
+      console.log(translateX.value);
+      translateX.value = event.translationX + context.x;
+    },
+    onEnd: () => {
+      if (translateX.value <= THRESHOLD) {
+        translateX.value = withTiming(0);
+      } else {
+        translateX.value = withTiming(SCREEN_WIDTH / 2);
+      }
+    },
+  });
 
-  useEffect(() => {
-    initialMode.current = false;
-  }, []);
+  const rStyle = useAnimatedStyle(() => {
+    const rotate = interpolate(
+      translateX.value,
+      [0, SCREEN_WIDTH / 2],
+      [0, 3],
+      Extrapolate.CLAMP,
+    );
+    const borderRadius = interpolate(
+      translateX.value,
+      [0, SCREEN_WIDTH / 2],
+      [0, 25],
+      Extrapolate.CLAMP,
+    );
+    const scale = interpolate(
+      translateX.value,
+      [0, 1],
+      [1, 0.8],
+      Extrapolate.CLAMP,
+    );
 
-  // new Array(5).fill(0).map((_, index) => ({ id: index }))
-  const [items, setItems] = useState<Item[]>(
-    new Array(5).fill(0).map((_, index) => ({id: index})),
-  );
+    return {
+      transform: [
+        {perspective: 100},
+        {
+          translateX: translateX.value,
+        },
+        // {
+        //   rotateY: `-${rotate}deg`,
+        // },
+        {
+          scale: withTiming(scale),
+        },
+      ],
 
-  const onAdd = useCallback(() => {
-    setItems(currentItems => {
-      const nextItemId = (currentItems[currentItems.length - 1]?.id ?? 0) + 1;
-      return [...currentItems, {id: nextItemId}];
-    });
-  }, []);
-
-  const onDelete = useCallback((itemId: number) => {
-    setItems(currentItems => {
-      return currentItems.filter(item => item.id !== itemId);
-    });
+      borderRadius: borderRadius,
+      shadowColor: translateX.value > 0 ? 'red' : 'black',
+      shadowOffset: {width: 0, height: 20},
+      shadowOpacity: 1,
+      shadowRadius: 20,
+      elevation: 5,
+    };
   }, []);
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity style={styles.floatingButton} onPress={onAdd}>
-        <Text style={{color: 'white', fontSize: 40}}>+</Text>
-      </TouchableOpacity>
-      <ScrollView
-        style={{flex: 1}}
-        contentContainerStyle={{paddingVertical: 50}}>
-        {items.map((item, index) => {
-          return (
-            <Animated.View
-              key={item.id}
-              entering={PinwheelIn.duration(1000)}
-              exiting={StretchOutY.duration(1000)}
-              layout={Layout.delay(1000)}
-              onTouchEnd={() => onDelete(item.id)}
-              style={styles.listItem}
-            />
-          );
-        })}
-      </ScrollView>
-    </View>
+    <GestureHandlerRootView style={{flex: 1}}>
+      <SafeAreaView style={{flex: 1, backgroundColor: '#3C3C3C'}}>
+        <PanGestureHandler onGestureEvent={panGestureEvent}>
+          <Animated.View style={[{flex: 1, backgroundColor: 'white'}, rStyle]}>
+            <View style={{margin: 28}}>
+              <Text style={{fontSize: 18, fontWeight: '700', color: 'red'}}>
+                Welcome to animation
+              </Text>
+            </View>
+          </Animated.View>
+        </PanGestureHandler>
+      </SafeAreaView>
+    </GestureHandlerRootView>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  listItem: {
-    height: 100,
-    backgroundColor: LIST_ITEM_COLOR,
-    width: '90%',
-    marginVertical: 10,
-    borderRadius: 20,
-    alignSelf: 'center',
-    // Shadow on Android
-    elevation: 5,
-    // Shadow on iOS
-    shadowColor: 'black',
-    shadowOpacity: 0.15,
-    shadowOffset: {width: 0, height: 10},
-    shadowRadius: 20,
-  },
-  floatingButton: {
-    width: 80,
-    aspectRatio: 1,
-    backgroundColor: 'black',
-    borderRadius: 40,
-    position: 'absolute',
-    bottom: 50,
-    right: '5%',
-    zIndex: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default App;
