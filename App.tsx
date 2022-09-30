@@ -56,7 +56,7 @@ const App = () => {
     );
     const scale = interpolate(
       translateX.value,
-      [0, 1],
+      [0, SCREEN_WIDTH / 2],
       [1, 0.8],
       Extrapolate.CLAMP,
     );
@@ -67,9 +67,9 @@ const App = () => {
         {
           translateX: translateX.value,
         },
-        // {
-        //   rotateY: `-${rotate}deg`,
-        // },
+        {
+          rotateY: `-${rotate}deg`,
+        },
         {
           scale: withTiming(scale),
         },
